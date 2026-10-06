@@ -61,6 +61,9 @@ declare namespace Cloudflare {
 
     // DataForSEO API Basic auth value (base64 of login:password)
     DATAFORSEO_API_KEY: string;
+    SEO_DATA_PROVIDER?: "dataforseo" | "treg";
+    TREG_TOKEN?: string;
+    TREG_ORG?: string;
     AI_VISIBILITY_WORKFLOW: Workflow<
       ({ runId: string } | { setupProjectId: string }) & {
         customer: {

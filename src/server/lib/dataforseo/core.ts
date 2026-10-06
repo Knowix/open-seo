@@ -1,5 +1,6 @@
 import { AppError } from "@/server/lib/errors";
-import { getRequiredEnvValue } from "@/server/lib/runtime-env";
+import { getOptionalEnvValue, getRequiredEnvValue } from "@/server/lib/runtime-env";
+import { resolveTregRequest } from "./treg";
 import type { ErrorCode } from "@/shared/error-codes";
 // Type-only: erased at compile, so no runtime cycle with envelope.ts (which
 // imports DataforseoErrorClassifier from here the same way).
@@ -66,9 +67,17 @@ function createAuthenticatedFetch(
   maxServerErrorRetries = DATAFORSEO_MAX_RETRIES,
 ) {
   return async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
-    const apiKey = await getRequiredEnvValue("DATAFORSEO_API_KEY");
     const headers = new Headers(init?.headers);
-    headers.set("Authorization", `Basic ${apiKey}`);
+    const provider = (await getOptionalEnvValue("SEO_DATA_PROVIDER")) ?? "dataforseo";
+    let target: RequestInfo = url;
+    if (provider === "treg") {
+      target = await resolveTregRequest(url, init, headers);
+    } else if (provider === "dataforseo") {
+      const apiKey = await getRequiredEnvValue("DATAFORSEO_API_KEY");
+      headers.set("Authorization", `Basic ${apiKey}`);
+    } else {
+      throw new AppError("VALIDATION_ERROR", "SEO_DATA_PROVIDER must be dataforseo or treg.");
+    }
     // Resolve the signal once so retries share the overall request timeout
     // rather than restarting a fresh 60s budget on each attempt.
     const signal =
@@ -77,7 +86,7 @@ function createAuthenticatedFetch(
     for (let attempt = 0; ; attempt++) {
       let response: Response;
       try {
-        response = await fetch(url, { ...init, headers, signal });
+        response = await fetch(target, { ...init, headers, signal });
       } catch (error) {
         // Both abort flavours mean "we ran out of time", and neither carries a
         // useful name of its own: the shared budget above rejects with
@@ -103,7 +112,17 @@ function createAuthenticatedFetch(
         }
         throw error;
       }
-      if (response.ok) return response;
+      if (response.ok) {
+        if (provider === "treg") {
+          console.info("treg.request-completed", {
+            path: formatDataforseoRequestPath(url),
+            callId: response.headers.get("X-Treg-Call-Id"),
+            costMicro: response.headers.get("X-Treg-Cost-Micro"),
+            replayed: response.headers.get("X-Treg-Idempotent-Replay"),
+          });
+        }
+        return response;
+      }
 
       // Transient upstream 5xx on an idempotent read -> back off and retry.
       if (response.status >= 500 && attempt < maxServerErrorRetries) {
@@ -119,7 +138,9 @@ function createAuthenticatedFetch(
       if (classified) throw classified;
 
       const code: ErrorCode =
-        response.status >= 500
+        response.status === 402
+          ? "PAYMENT_REQUIRED"
+          : response.status >= 500
           ? "UPSTREAM_UNAVAILABLE"
           : response.status === 429
             ? "RATE_LIMITED"

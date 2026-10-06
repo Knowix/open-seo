@@ -2,7 +2,7 @@ import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepo
 import { AiVisibilityError } from "./aiVisibilityErrors";
 import { aiScope } from "./aiVisibilityConfiguration";
 import {
-  getOptionalEnvValue,
+  isSeoDataConfigured,
   isHostedServerAuthMode,
 } from "@/server/lib/runtime-env";
 import {
@@ -61,11 +61,11 @@ export async function estimateCost(
     warnings: [
       hosted
         ? "Customer cost uses OpenSEO data credits, including the service markup."
-        : "Self-hosted: cost estimates your own DataForSEO account charges. OpenSEO credits are not used.",
+        : "Self-hosted: this is a DataForSEO estimate. In Treg mode, actual charges are recorded in Treg; estimates may differ. OpenSEO credits are not used.",
       `One fresh answer per prompt and engine. The ${scheduleInterval} estimate assumes ${checksPerMonth} ${checksPerMonth === 1 ? "check" : "checks"} per month.`,
-      ...(!(await getOptionalEnvValue("DATAFORSEO_API_KEY"))
+      ...(!(await isSeoDataConfigured())
         ? [
-            "DataForSEO is not configured on this server. Setup is available; collection needs an operator to add its API key.",
+            "The SEO data provider is not configured on this server. Setup is available; collection needs provider credentials.",
           ]
         : []),
     ],

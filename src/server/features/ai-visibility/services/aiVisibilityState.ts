@@ -1,5 +1,5 @@
 import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepository";
-import { getOptionalEnvValue } from "@/server/lib/runtime-env";
+import { isSeoDataConfigured } from "@/server/lib/runtime-env";
 import {
   AI_ENGINE_LABELS,
   AI_UNSUPPORTED_LOCATIONS,
@@ -33,7 +33,7 @@ export async function getTracker(input: {
       repo.getConfiguration(input.projectId),
       repo.listCompetitors(input.projectId),
       repo.listRuns(input.projectId, 10),
-      getOptionalEnvValue("DATAFORSEO_API_KEY"),
+      isSeoDataConfigured(),
       repo.getProject(input.projectId),
     ],
   );

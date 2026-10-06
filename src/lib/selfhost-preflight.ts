@@ -121,6 +121,22 @@ function checkAuthMode(env: EnvRecord, items: PreflightItem[]): void {
 }
 
 function checkDataForSeo(env: EnvRecord, items: PreflightItem[]): void {
+  const provider = get(env, "SEO_DATA_PROVIDER") ?? "dataforseo";
+  if (provider === "treg") {
+    items.push({
+      key: "dataforseo",
+      name: "TREG_TOKEN",
+      level: get(env, "TREG_TOKEN") ? "ok" : "warn",
+      message: get(env, "TREG_TOKEN")
+        ? "Treg configured — live SEO requests use your Treg balance; no DataForSEO key needed. Queued jobs and unmapped routes are unavailable."
+        : "Treg selected but TREG_TOKEN is not set. Add it to your private environment file.",
+    });
+    return;
+  }
+  if (provider !== "dataforseo") {
+    items.push({ key: "dataforseo", name: "SEO_DATA_PROVIDER", level: "fail", message: "SEO_DATA_PROVIDER must be dataforseo or treg." });
+    return;
+  }
   const key = get(env, "DATAFORSEO_API_KEY");
 
   if (!key) {
