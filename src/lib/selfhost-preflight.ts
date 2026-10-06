@@ -134,7 +134,12 @@ function checkDataForSeo(env: EnvRecord, items: PreflightItem[]): void {
     return;
   }
   if (provider !== "dataforseo") {
-    items.push({ key: "dataforseo", name: "SEO_DATA_PROVIDER", level: "fail", message: "SEO_DATA_PROVIDER must be dataforseo or treg." });
+    items.push({
+      key: "dataforseo",
+      name: "SEO_DATA_PROVIDER",
+      level: "fail",
+      message: "SEO_DATA_PROVIDER must be dataforseo or treg.",
+    });
     return;
   }
   const key = get(env, "DATAFORSEO_API_KEY");

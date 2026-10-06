@@ -38,8 +38,13 @@ export async function getRequiredEnvValue(name: string): Promise<string> {
 }
 
 export async function isSeoDataConfigured(): Promise<boolean> {
-  const provider = (await getOptionalEnvValue("SEO_DATA_PROVIDER")) ?? "dataforseo";
-  return Boolean(await getOptionalEnvValue(provider === "treg" ? "TREG_TOKEN" : "DATAFORSEO_API_KEY"));
+  const provider =
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) ?? "dataforseo";
+  return Boolean(
+    await getOptionalEnvValue(
+      provider === "treg" ? "TREG_TOKEN" : "DATAFORSEO_API_KEY",
+    ),
+  );
 }
 
 export async function isHostedServerAuthMode(): Promise<boolean> {

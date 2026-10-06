@@ -1,5 +1,8 @@
 import { AppError } from "@/server/lib/errors";
-import { getOptionalEnvValue, getRequiredEnvValue } from "@/server/lib/runtime-env";
+import {
+  getOptionalEnvValue,
+  getRequiredEnvValue,
+} from "@/server/lib/runtime-env";
 import { resolveTregRequest } from "./treg";
 import type { ErrorCode } from "@/shared/error-codes";
 // Type-only: erased at compile, so no runtime cycle with envelope.ts (which
@@ -68,7 +71,8 @@ function createAuthenticatedFetch(
 ) {
   return async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
     const headers = new Headers(init?.headers);
-    const provider = (await getOptionalEnvValue("SEO_DATA_PROVIDER")) ?? "dataforseo";
+    const provider =
+      (await getOptionalEnvValue("SEO_DATA_PROVIDER")) ?? "dataforseo";
     let target: RequestInfo = url;
     if (provider === "treg") {
       target = await resolveTregRequest(url, init, headers);
@@ -76,7 +80,10 @@ function createAuthenticatedFetch(
       const apiKey = await getRequiredEnvValue("DATAFORSEO_API_KEY");
       headers.set("Authorization", `Basic ${apiKey}`);
     } else {
-      throw new AppError("VALIDATION_ERROR", "SEO_DATA_PROVIDER must be dataforseo or treg.");
+      throw new AppError(
+        "VALIDATION_ERROR",
+        "SEO_DATA_PROVIDER must be dataforseo or treg.",
+      );
     }
     // Resolve the signal once so retries share the overall request timeout
     // rather than restarting a fresh 60s budget on each attempt.
@@ -141,12 +148,12 @@ function createAuthenticatedFetch(
         response.status === 402
           ? "PAYMENT_REQUIRED"
           : response.status >= 500
-          ? "UPSTREAM_UNAVAILABLE"
-          : response.status === 429
-            ? "RATE_LIMITED"
-            : response.status === 401
-              ? "DATAFORSEO_AUTH_FAILED"
-              : "INTERNAL_ERROR";
+            ? "UPSTREAM_UNAVAILABLE"
+            : response.status === 429
+              ? "RATE_LIMITED"
+              : response.status === 401
+                ? "DATAFORSEO_AUTH_FAILED"
+                : "INTERNAL_ERROR";
       const error = new AppError(
         code,
         `DataForSEO HTTP ${response.status} on ${path}`,
