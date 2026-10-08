@@ -1,3 +1,4 @@
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { ProjectRepository } from "@/server/features/projects/repositories/ProjectRepository";
 import { sort } from "remeda";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
@@ -202,6 +203,14 @@ async function ensureBacklinkSnapshot(input: {
 }): Promise<DashboardBacklinkSummary | null> {
   const { projectId, domain } = input;
   if (!domain) return null;
+
+  // Opening a local research workspace must not implicitly spend Treg credits.
+  if (
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg" &&
+    (await getOptionalEnvValue("TREG_DASHBOARD_AUTO_REFRESH")) !== "true"
+  ) {
+    return getBacklinkSummary(projectId, domain);
+  }
 
   const latest =
     await BacklinkSnapshotRepository.getLatestForProject(projectId);
