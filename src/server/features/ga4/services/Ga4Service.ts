@@ -1,3 +1,7 @@
+import {
+  isTregGoogleConfigured,
+  TREG_GOOGLE_ACCOUNT_ID,
+} from "@/server/lib/treg-google";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { account } from "@/db/schema";
@@ -15,7 +19,7 @@ async function getConnection(projectId: string): Promise<Ga4Connection | null> {
 }
 
 async function listGrantsForUser(userId: string) {
-  return db
+  const grants = await db
     .select({ id: account.id, accountId: account.accountId })
     .from(account)
     .where(
@@ -24,6 +28,12 @@ async function listGrantsForUser(userId: string) {
         eq(account.providerId, GA4_OAUTH_PROVIDER_ID),
       ),
     );
+  if (await isTregGoogleConfigured())
+    grants.push({
+      id: TREG_GOOGLE_ACCOUNT_ID,
+      accountId: TREG_GOOGLE_ACCOUNT_ID,
+    });
+  return grants;
 }
 
 async function userHasGrant(userId: string): Promise<boolean> {

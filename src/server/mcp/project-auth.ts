@@ -1,3 +1,4 @@
+import { withTregUsageScope } from "@/server/lib/treg-usage";
 import { AuthRepository } from "@/server/auth/repositories/AuthRepository";
 import { ProjectService } from "@/server/features/projects/services/ProjectService";
 import { AppError } from "@/server/lib/errors";
@@ -76,6 +77,8 @@ export function withMcpProjectAuth<TArgs extends ProjectScopedArgs, TResult>(
 ) {
   return async (args: TArgs, toolContext: ToolContext) => {
     const context = await requireProjectAccess(toolContext, args.projectId);
-    return handler(args, context);
+    return withTregUsageScope(context.billing, async () =>
+      handler(args, context),
+    );
   };
 }

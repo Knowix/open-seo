@@ -1,3 +1,4 @@
+import { withTregUsageScope } from "@/server/lib/treg-usage";
 import { waitUntil } from "cloudflare:workers";
 import {
   type CreditFeature,
@@ -323,7 +324,9 @@ async function meterDataforseoCalls<T>(
 
   if (!isHostedMode) {
     return Promise.allSettled(
-      executes.map(async (execute) => (await execute()).data),
+      executes.map(async (execute) =>
+        withTregUsageScope(customer, async () => (await execute()).data),
+      ),
     );
   }
 
@@ -345,7 +348,7 @@ async function meterDataforseoCalls<T>(
           throw new AppError("INSUFFICIENT_CREDITS");
         }
         try {
-          const result = await execute();
+          const result = await withTregUsageScope(customer, execute);
           billed[index] = result.billing;
           return result.data;
         } catch (error) {

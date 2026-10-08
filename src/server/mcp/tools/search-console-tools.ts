@@ -1,3 +1,4 @@
+import { isTregGoogleConfigured } from "@/server/lib/treg-google";
 /* eslint-disable max-lines */
 import { z } from "zod";
 import { buildProjectMeta } from "@/server/mcp/context";
@@ -70,7 +71,8 @@ async function missingSelfHostedGoogleClientResponse(
   context: ProjectAuthContext,
   projectId: string,
 ) {
-  if (await hasGoogleOAuthConfig()) return null;
+  if ((await hasGoogleOAuthConfig()) || (await isTregGoogleConfigured()))
+    return null;
 
   return mcpResponse({
     text: `This self-hosted OpenSEO deployment is not configured for Search Console yet. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and BETTER_AUTH_SECRET, then reconnect Search Console from the project's settings page. Setup docs: ${GSC_SELF_HOSTED_SETUP_DOCS_URL}`,

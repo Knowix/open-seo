@@ -1,15 +1,19 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, getTableColumns } from "drizzle-orm";
 import { db } from "@/db";
-import { ga4Connections } from "@/db/schema";
+import { ga4Connections, projects } from "@/db/schema";
 
 export type Ga4Connection = typeof ga4Connections.$inferSelect;
 
 async function getByProjectId(
   projectId: string,
-): Promise<Ga4Connection | null> {
+): Promise<(Ga4Connection & { projectDomain: string | null }) | null> {
   const rows = await db
-    .select()
+    .select({
+      ...getTableColumns(ga4Connections),
+      projectDomain: projects.domain,
+    })
     .from(ga4Connections)
+    .innerJoin(projects, eq(projects.id, ga4Connections.projectId))
     .where(eq(ga4Connections.projectId, projectId))
     .limit(1);
   return rows[0] ?? null;

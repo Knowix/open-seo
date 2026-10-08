@@ -1,0 +1,9 @@
+node_modules
+.git
+.wrangler
+dist
+dist-sourcemaps
+.env*
+.dev.vars*
+.logs
+*.log

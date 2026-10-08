@@ -10,6 +10,7 @@ export function CheckConfirmModal({
   keywordCount,
   devices,
   costUsd,
+  warnings,
   isPending,
   onRunNow,
   onCancel,
@@ -18,6 +19,7 @@ export function CheckConfirmModal({
   devices: RankTrackingConfig["devices"];
   /** Server estimate; it prices each keyword's text (operators cost 5x). */
   costUsd: number | undefined;
+  warnings?: string[];
   isPending: boolean;
   onRunNow: () => void;
   onCancel: () => void;
@@ -50,6 +52,11 @@ export function CheckConfirmModal({
           .
         </>
       ) : null}
+      {warnings?.map((warning) => (
+        <p key={warning} className="mt-2 text-sm text-muted-foreground">
+          {warning}
+        </p>
+      ))}
     </ConfirmDialog>
   );
 }

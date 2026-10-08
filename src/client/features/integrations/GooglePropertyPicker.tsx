@@ -34,6 +34,7 @@ type SecondaryAction = {
 };
 
 function accountLabel(account: GooglePickerAccount) {
+  if (account.accountId === "treg") return "Treg team connection";
   return account.email ?? `Google account · ${account.accountId.slice(-6)}`;
 }
 
@@ -200,16 +201,18 @@ export function GooglePropertyPicker({
                         <span className="min-w-0 break-all">
                           {accountLabel(account)}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="shrink-0 text-destructive"
-                          disabled={saving}
-                          onClick={() => setRemoving(account)}
-                          aria-label={`Remove ${accountLabel(account)}`}
-                        >
-                          Remove account
-                        </Button>
+                        {account.accountId !== "treg" ? (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="shrink-0 text-destructive"
+                            disabled={saving}
+                            onClick={() => setRemoving(account)}
+                            aria-label={`Remove ${accountLabel(account)}`}
+                          >
+                            Remove account
+                          </Button>
+                        ) : null}
                       </div>
                       {account.requiresReconnect ? (
                         <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 text-sm">
@@ -298,18 +301,21 @@ export function GooglePropertyPicker({
                 </>
               )}
             </div>
-            <div className="border-t border-border p-1.5">
-              <Button
-                variant="ghost"
-                className="h-auto w-full justify-start px-2 py-2.5"
-                onClick={onReconnect}
-                disabled={saving || linking}
-                pending={linking}
-              >
-                {linking ? null : <Plus className="size-4" />}
-                {linking ? "Opening Google…" : "Add Google account"}
-              </Button>
-            </div>
+            {accounts.some((account) => account.accountId !== "treg") ||
+            accounts.length === 0 ? (
+              <div className="border-t border-border p-1.5">
+                <Button
+                  variant="ghost"
+                  className="h-auto w-full justify-start px-2 py-2.5"
+                  onClick={onReconnect}
+                  disabled={saving || linking}
+                  pending={linking}
+                >
+                  {linking ? null : <Plus className="size-4" />}
+                  {linking ? "Opening Google…" : "Add Google account"}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

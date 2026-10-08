@@ -1,3 +1,4 @@
+import { ga4ProjectHostnames } from "./Ga4ProjectScope";
 import { Ga4ConnectionRepository } from "@/server/features/ga4/repositories/Ga4ConnectionRepository";
 import { createGa4DataClient } from "@/server/lib/ga4Client";
 import {
@@ -94,6 +95,7 @@ async function getOrganicOverview(
     userId: connection.connectedByUserId,
     ga4AccountId: connection.ga4AccountId,
     propertyId: connection.propertyId,
+    hostnames: ga4ProjectHostnames(connection),
   });
 
   try {
@@ -117,6 +119,7 @@ async function getOrganicOverview(
       source: {
         provider: "google_analytics" as const,
         propertyId: connection.propertyId,
+        hostnames: ga4ProjectHostnames(connection),
         propertyDisplayName: connection.propertyDisplayName,
       },
       request: {

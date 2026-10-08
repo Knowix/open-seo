@@ -1,3 +1,4 @@
+import { getTregUsageTool } from "@/server/mcp/tools/get-treg-usage";
 import {
   getAiVisibilityTrackerTool,
   generateAiVisibilityPromptsTool,
@@ -238,6 +239,7 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(removeRankTrackingKeywordsTool);
   register(pinRankTrackingKeywordsTool);
   register(estimateRankTrackerCostTool);
+  register(getTregUsageTool);
   register(runRankTrackerTool);
   register(getRankedKeywordsTool);
   register(findSerpCompetitorsTool);

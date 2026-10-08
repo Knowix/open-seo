@@ -47,8 +47,8 @@ skills, but disable its hosted MCP when switching to this fork.
   Unknown routes fail before making a provider request. Refresh the mapping
   when Treg adds support, retaining exact method/path/id matches.
 - Queued `task_post` workflows are blocked before submission: this adapter does
-  not yet implement task ownership and collection. Rank tracker queues and
-  queued business reviews/updates therefore need further work.
+  not yet implement task ownership and collection. Scheduled rank checks use supported live SERPs instead. Queued business
+  reviews/updates remain unavailable.
 - Some LLM mention analytics and model-list routes are not in the catalog.
   Their absence is reported explicitly; similar-looking endpoints are not
   substituted because their request and response contracts differ.
@@ -63,8 +63,23 @@ skills, but disable its hosted MCP when switching to this fork.
   receives a new key. Direct provider mode retains its existing retry policy.
 - DataForSEO credentials are never sent to Treg. Your Treg token stays on the
   server, outside the repository and client bundle.
-- Google Analytics/Search Console and the optional in-app OpenRouter agent
-  still require their own connections. This adapter does not migrate them.
+- Google Analytics/Search Console can reuse registered Treg connections through
+  the explicitly enabled local bridge below, or retain direct OAuth connections.
+  The optional in-app OpenRouter agent still requires its model provider.
 
 See [Treg's API](https://treg.to/docs) and
 [OpenSEO's self-hosting guide](https://openseo.so/docs/self-hosting/docker).
+
+## Local Google account bridge
+
+For a private local instance with AUTH_MODE=local_noauth, set TREG_GOOGLE_ENABLED=true in the private environment file and restart the service. The bridge reuses the team's registered google-search-console, google-analytics-admin and google-analytics tools. Pick each project's verified Search Console site and GA4 property in Settings → Integrations. The selection is validated against the available Google properties and saved separately per project. Existing direct Google OAuth connections continue to work. No new Google credentials are stored in OpenSEO. Treg GA4 reports are filtered to the project domain and its www hostname; the returned source metadata lists these hostnames. This separates websites sharing one property. Direct OAuth reporting keeps its existing property scope.
+
+This bridge accepts only the discovery and read-only reporting routes used by OpenSEO; Google writes and arbitrary hosts are rejected. It is disabled in hosted and shared-auth modes to prevent access to a global team's credentials. Keep the no-auth service bound to loopback.
+
+## Rank checks and spend
+
+Treg mode uses supported live SERPs for scheduled and manual rank checks. It does not submit queued tasks. Rank estimates identify the provider and include pricing warnings: the Treg first-page observation was $0.004 when inspected October 8, 2026; deeper pages remain planning estimates. An estimated credit ceiling is not a Treg dollar cap. Set an appropriate frequency and keyword count before enabling a schedule.
+
+Project Settings → Integrations → Treg usage shows actual USD charges from response headers. The free get_treg_usage MCP tool reads the same normalized ledger. Each request is attributed to its project and organization; replays count once. Missing headers and transport failures remain unknown, not zero. This ledger starts at installation and excludes calls made outside the app. The upstream task cost remains separate and is not represented as the Treg invoice. Read Treg's own balance to reconcile overall account spend.
+
+The existing external AI-answer workflow may continue via Treg directly, with summaries saved into OpenSEO. OpenSEO queued AI tracking and other unmapped or queued routes remain unsupported and are rejected before submitting requests. The in-app AI agent still needs its own configured model provider.

@@ -179,7 +179,19 @@ function checkOptionalFeatures(env: EnvRecord, items: PreflightItem[]): void {
   const clientSecret = get(env, "GOOGLE_CLIENT_SECRET");
   const betterAuthSecret = get(env, "BETTER_AUTH_SECRET");
 
-  if (clientId || clientSecret) {
+  if (
+    get(env, "AUTH_MODE") === "local_noauth" &&
+    get(env, "TREG_GOOGLE_ENABLED") === "true" &&
+    get(env, "TREG_TOKEN")
+  ) {
+    items.push({
+      key: "gsc",
+      name: "Search Console / GA4",
+      level: "ok",
+      message:
+        "Local read-only Treg Google bridge enabled. Choose properties in project Integrations.",
+    });
+  } else if (clientId || clientSecret) {
     if (!clientId || !clientSecret) {
       items.push({
         key: "gsc",

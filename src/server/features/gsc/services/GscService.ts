@@ -1,3 +1,7 @@
+import {
+  isTregGoogleConfigured,
+  TREG_GOOGLE_ACCOUNT_ID,
+} from "@/server/lib/treg-google";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { account } from "@/db/schema";
@@ -54,21 +58,11 @@ async function getConnection(projectId: string): Promise<GscConnection | null> {
 /** Whether this user has linked a google-search-console grant (regardless of
  *  whether they've picked a property yet). Drives the connect-vs-pick UI. */
 async function userHasGrant(userId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: account.id })
-    .from(account)
-    .where(
-      and(
-        eq(account.userId, userId),
-        eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
-      ),
-    )
-    .limit(1);
-  return rows.length > 0;
+  return (await listGrantsForUser(userId)).length > 0;
 }
 
 async function listGrantsForUser(userId: string) {
-  return db
+  const grants = await db
     .select({ id: account.id, accountId: account.accountId })
     .from(account)
     .where(
@@ -77,6 +71,12 @@ async function listGrantsForUser(userId: string) {
         eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
       ),
     );
+  if (await isTregGoogleConfigured())
+    grants.push({
+      id: TREG_GOOGLE_ACCOUNT_ID,
+      accountId: TREG_GOOGLE_ACCOUNT_ID,
+    });
+  return grants;
 }
 
 /** Expected ways a stored grant fails to reach Search Console: no token could be

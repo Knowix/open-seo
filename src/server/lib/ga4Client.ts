@@ -1,3 +1,4 @@
+import { fetchTregGoogle, TREG_GOOGLE_ACCOUNT_ID } from "./treg-google";
 /* eslint-disable max-lines -- one client module per Google integration (gscClient precedent); GA4 spans the Admin and Data APIs */
 import { z } from "zod";
 import { getGoogleAccessToken } from "@/server/features/google/googleOAuth";
@@ -171,11 +172,12 @@ export function createGa4AdminClient(opts: {
   const accessToken = memoizedGa4AccessToken(opts);
 
   async function request(url: string): Promise<unknown> {
-    const token = await accessToken();
+    const treg = opts.ga4AccountId === TREG_GOOGLE_ACCOUNT_ID;
+    const token = treg ? null : await accessToken();
     let response: Response;
     try {
-      response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
+      response = await (treg ? fetchTregGoogle : fetch)(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
     } catch (error) {
       if (isAbortError(error)) throw error;
@@ -200,6 +202,7 @@ export function createGa4AdminClient(opts: {
 
   return {
     async getUserInfoEmail(): Promise<string | null> {
+      if (opts.ga4AccountId === TREG_GOOGLE_ACCOUNT_ID) return null;
       const data = z
         .object({ email: z.string().email().optional() })
         .parse(await request(GOOGLE_USERINFO_URL));
@@ -409,6 +412,7 @@ export function createGa4DataClient(opts: {
   userId: string;
   ga4AccountId: string;
   propertyId: string;
+  hostnames?: string[];
 }) {
   const propertyId = propertyIdSchema.parse(opts.propertyId);
   const accessToken = memoizedGa4AccessToken(opts);
@@ -417,17 +421,42 @@ export function createGa4DataClient(opts: {
     async runReport(
       request: Ga4RunReportRequest,
     ): Promise<Ga4RunReportResponse> {
-      const token = await accessToken();
+      const treg = opts.ga4AccountId === TREG_GOOGLE_ACCOUNT_ID;
+      const token = treg ? null : await accessToken();
+      const hostFilter = opts.hostnames?.length
+        ? {
+            filter: {
+              fieldName: "hostName",
+              inListFilter: { values: opts.hostnames },
+            },
+          }
+        : null;
+      const scopedRequest =
+        treg && hostFilter
+          ? {
+              ...request,
+              dimensionFilter: request.dimensionFilter
+                ? {
+                    andGroup: {
+                      expressions: [request.dimensionFilter, hostFilter],
+                    },
+                  }
+                : hostFilter,
+            }
+          : request;
       let response: Response;
       try {
-        response = await fetch(`${GA4_DATA_API_BASE}/${propertyId}:runReport`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+        response = await (treg ? fetchTregGoogle : fetch)(
+          `${GA4_DATA_API_BASE}/${propertyId}:runReport`,
+          {
+            method: "POST",
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(scopedRequest),
           },
-          body: JSON.stringify(request),
-        });
+        );
       } catch (error) {
         if (isAbortError(error)) throw error;
         throw new Ga4DataApiError(

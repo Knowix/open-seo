@@ -1,3 +1,4 @@
+import { isTregGoogleConfigured } from "@/server/lib/treg-google";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { waitUntil } from "cloudflare:workers";
@@ -43,7 +44,9 @@ export const getGscConnection = createServerFn({ method: "POST" })
       await Promise.all([
         GscService.getConnection(context.projectId),
         GscService.userHasGrant(context.userId),
-        hasGoogleOAuthConfig(),
+        Promise.all([hasGoogleOAuthConfig(), isTregGoogleConfigured()]).then(
+          ([oauth, treg]) => oauth || treg,
+        ),
       ]);
     return {
       connected: Boolean(connection),

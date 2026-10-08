@@ -1,3 +1,4 @@
+import { isTregGoogleConfigured } from "@/server/lib/treg-google";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { waitUntil } from "cloudflare:workers";
@@ -38,7 +39,9 @@ export const getGa4Connection = createServerFn({ method: "POST" })
       await Promise.all([
         Ga4Service.getConnection(context.projectId),
         Ga4Service.userHasGrant(context.userId),
-        hasGoogleOAuthConfig(),
+        Promise.all([hasGoogleOAuthConfig(), isTregGoogleConfigured()]).then(
+          ([oauth, treg]) => oauth || treg,
+        ),
       ]);
     return {
       connected: Boolean(connection),

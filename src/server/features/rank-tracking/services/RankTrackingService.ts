@@ -1,3 +1,4 @@
+import { estimateProviderRankCheck } from "./providerRankCost";
 import { env } from "cloudflare:workers";
 import {
   customerHasPaidPlan,
@@ -21,7 +22,6 @@ import {
   reconcileActiveRankCheckRun,
 } from "./rankCheckRunGuards";
 import {
-  estimateRankCheckCredits,
   computeNextCheckAt,
   isScheduledRankTrackingInterval,
   MAX_CONFIGS_PER_PROJECT,
@@ -264,7 +264,7 @@ async function triggerCheck(input: {
   }
 
   if (input.maxCostCredits != null) {
-    const { costCredits } = estimateRankCheckCredits(
+    const { costCredits } = await estimateProviderRankCheck(
       keywords.map((kw) => kw.keyword),
       config.devices,
       config.serpDepth,

@@ -1,10 +1,12 @@
+import {
+  estimateProviderRankCheck,
+  estimateProviderScheduledCheck,
+} from "./providerRankCost";
 import { RankTrackingRepository } from "@/server/features/rank-tracking/repositories/RankTrackingRepository";
 import type { rankTrackingKeywords } from "@/db/schema";
 import { AppError } from "@/server/lib/errors";
 import {
   devicesCount,
-  estimateRankCheckCredits,
-  estimateScheduledRankCheckCredits,
   isScheduledRankTrackingInterval,
   MAX_KEYWORDS_PER_CONFIG,
 } from "@/shared/rank-tracking";
@@ -63,10 +65,10 @@ async function addKeywords(
     ? config.scheduleInterval
     : null;
   let scheduledEstimate:
-    | ReturnType<typeof estimateScheduledRankCheckCredits>
+    | Awaited<ReturnType<typeof estimateProviderScheduledCheck>>
     | undefined;
   if (rows.length > 0 && scheduleInterval) {
-    scheduledEstimate = estimateScheduledRankCheckCredits(
+    scheduledEstimate = await estimateProviderScheduledCheck(
       [...existing, ...rows].map((kw) => kw.keyword),
       config.devices,
       config.serpDepth,
@@ -95,7 +97,7 @@ async function addKeywords(
   ) {
     const persisted =
       await RankTrackingRepository.getKeywordsForConfig(configId);
-    scheduledEstimate = estimateScheduledRankCheckCredits(
+    scheduledEstimate = await estimateProviderScheduledCheck(
       persisted.map((kw) => kw.keyword),
       config.devices,
       config.serpDepth,
@@ -155,12 +157,13 @@ async function estimateCost(
     ...additionalKeywords,
   ].slice(0, Math.max(existingKeywordCount, MAX_KEYWORDS_PER_CONFIG));
   const keywordCount = keywords.length;
-  const { costUsd, costCredits } = estimateRankCheckCredits(
-    keywords,
-    config.devices,
-    config.serpDepth,
-    "live",
-  );
+  const { costUsd, costCredits, pricingSource, warnings } =
+    await estimateProviderRankCheck(
+      keywords,
+      config.devices,
+      config.serpDepth,
+      "live",
+    );
   const scheduleInterval = isScheduledRankTrackingInterval(
     config.scheduleInterval,
   )
@@ -169,6 +172,8 @@ async function estimateCost(
   return {
     costUsd,
     costCredits,
+    pricingSource,
+    warnings,
     keywordCount,
     devicesCount: devicesCount(config.devices),
     totalChecks: keywordCount * devicesCount(config.devices),
@@ -176,7 +181,7 @@ async function estimateCost(
     existingKeywordCount,
     additionalKeywordCount: keywordCount - existingKeywordCount,
     scheduledEstimate: scheduleInterval
-      ? estimateScheduledRankCheckCredits(
+      ? await estimateProviderScheduledCheck(
           keywords,
           config.devices,
           config.serpDepth,
@@ -199,11 +204,11 @@ async function getValidatedConfig(configId: string, projectId: string) {
 
 function scheduledApprovalError(
   scheduleInterval: "daily" | "weekly" | "monthly",
-  estimate: ReturnType<typeof estimateScheduledRankCheckCredits>,
+  estimate: Awaited<ReturnType<typeof estimateProviderScheduledCheck>>,
 ) {
   return new AppError(
     "VALIDATION_ERROR",
-    `Adding these keywords would make each ${scheduleInterval} scheduled check cost a nominal queued estimate of ${estimate.costCredits} credits (~$${estimate.costUsd.toFixed(4)} per check; ~${estimate.monthlyCostCredits} credits/month). Call estimate_rank_tracker_cost with additionalKeywords, show the recurring estimate and live-fallback caveat to the user, then retry with maxEstimatedScheduledCheckCredits set to the approved per-check estimate. Live fallback for rejected, failed, or timed-out queued tasks may use additional separately billed credits.`,
+    `Adding these keywords would make each ${scheduleInterval} scheduled check cost a ${estimate.method} planning estimate of ${estimate.costCredits} credits (~$${estimate.costUsd.toFixed(4)} per check; ~${estimate.monthlyCostCredits} credits/month). Call estimate_rank_tracker_cost with additionalKeywords, show the recurring estimate and live-fallback caveat to the user, then retry with maxEstimatedScheduledCheckCredits set to the approved per-check estimate. Actual provider charges can vary; the credit estimate is not a dollar cap.`,
   );
 }
 

@@ -1,3 +1,5 @@
+import { getSeoProvider } from "@/serverFunctions/treg";
+import { estimateTregRankCheck } from "@/shared/treg-rank-pricing";
 import { useId, useState } from "react";
 import { projectsQueryOptions } from "@/client/features/projects/projectQueries";
 import { useQuery } from "@tanstack/react-query";
@@ -380,18 +382,43 @@ function CostEstimate({
   serpDepth,
   schedule,
 }: Pick<ConfigFormValues, "devices" | "serpDepth" | "schedule">) {
-  // Scheduled checks run through the cheaper task queue; manual configs only
-  // ever pay the live price.
-  const { costUsd: costPerKeyword } = estimateRankCheckCredits(
-    ["plain keyword"],
-    devices,
-    serpDepth,
-    schedule === "manual" ? "live" : "queued",
-  );
+  const provider = useQuery({
+    queryKey: ["seo-data-provider"],
+    queryFn: () => getSeoProvider(),
+  });
+  const treg = provider.data?.provider === "treg";
+  const estimate = treg
+    ? estimateTregRankCheck(["plain keyword"], devices, serpDepth)
+    : estimateRankCheckCredits(
+        ["plain keyword"],
+        devices,
+        serpDepth,
+        schedule === "manual" ? "live" : "queued",
+      );
+  const costPerKeyword = estimate.costUsd;
+  if (provider.isPending)
+    return (
+      <p className="text-xs text-muted-foreground">
+        Loading provider estimate…
+      </p>
+    );
+  if (provider.isError)
+    return (
+      <p className="text-xs text-muted-foreground">
+        Provider estimate unavailable. Check pricing before enabling recurring
+        checks.
+      </p>
+    );
   const checksPerMonth =
     schedule === "daily" ? 30 : schedule === "weekly" ? 4 : 1;
   return (
     <div className="space-y-0.5 rounded-lg bg-muted px-3 py-2.5 text-xs text-muted-foreground">
+      {treg ? (
+        <p>
+          Treg live SERP planning estimate. Actual USD charges can vary; this is
+          not a spending cap.
+        </p>
+      ) : null}
       <div>
         <span className="font-mono font-semibold text-foreground">
           ~${costPerKeyword.toFixed(4)}

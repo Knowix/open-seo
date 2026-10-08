@@ -1,3 +1,4 @@
+import { TregUsageSettings } from "@/client/features/settings/TregUsageSettings";
 import { queryClient } from "@/client/tanstack-db/queryClient";
 import { googleConnectionOptions } from "@/client/features/integrations/googleProviders";
 import { createFileRoute } from "@tanstack/react-router";
@@ -35,6 +36,7 @@ function ProjectIntegrationsRoute() {
         <GoogleConnectionCard provider="ga4" projectId={projectId} />
       </section>
 
+      <TregUsageSettings projectId={projectId} />
       <CrawlerAccessSettings projectId={projectId} />
     </div>
   );

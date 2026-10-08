@@ -1,4 +1,8 @@
 import {
+  estimateProviderRankCheck,
+  usesTregRankChecks,
+} from "@/server/features/rank-tracking/services/providerRankCost";
+import {
   WorkflowEntrypoint,
   type WorkflowEvent,
   type WorkflowStep,
@@ -22,10 +26,7 @@ import {
   AUTUMN_SEO_DATA_BALANCE_FEATURE_ID,
   AUTUMN_SEO_DATA_TOPUP_BALANCE_FEATURE_ID,
 } from "@/shared/billing";
-import {
-  estimateRankCheckCredits,
-  rankCheckCostApprovalError,
-} from "@/shared/rank-tracking";
+import { rankCheckCostApprovalError } from "@/shared/rank-tracking";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 
 const SINGLE_ATTEMPT_STEP_CONFIG = {
@@ -85,7 +86,7 @@ async function prepareRankCheckKeywords(input: {
     throw new AppError("INTERNAL_ERROR", "No keywords to track");
   }
 
-  const { costCredits } = estimateRankCheckCredits(
+  const { costCredits } = await estimateProviderRankCheck(
     trackingKeywords.map((kw) => kw.keyword),
     input.devices,
     input.serpDepth,
@@ -358,9 +359,8 @@ export class RankCheckWorkflow extends WorkflowEntrypoint<
           locationName,
           runId,
         };
-        // Scheduled checks use DataForSEO's task queue (~30% of live cost);
-        // manual checks stay on the live endpoint for instant results.
-        if (trigger === "scheduled") {
+        // Treg has no task collection adapter, so scheduled checks use live SERPs.
+        if (trigger === "scheduled" && !(await usesTregRankChecks())) {
           queueStats = await runQueuedCheck(step, checkContext);
         } else {
           await runLiveCheck(step, checkContext);

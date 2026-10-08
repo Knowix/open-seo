@@ -1,3 +1,5 @@
+import * as sqliteTregUsage from "./treg-usage.schema";
+import * as pgTregUsage from "./pg/treg-usage.schema";
 import { getDatabaseProvider } from "./provider";
 import * as sqliteApp from "./app.schema";
 import * as sqliteProjectContext from "./project-context.schema";
@@ -45,7 +47,8 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteGa4 &
   typeof sqliteGsc &
   typeof sqliteTelemetry &
-  typeof sqliteAiVisibility;
+  typeof sqliteAiVisibility &
+  typeof sqliteTregUsage;
 
 const runtimeSchema =
   getDatabaseProvider() === "postgres"
@@ -62,6 +65,7 @@ const runtimeSchema =
         ...pgGsc,
         ...pgTelemetry,
         ...pgAiVisibility,
+        ...pgTregUsage,
       }
     : {
         ...sqliteApp,
@@ -76,6 +80,7 @@ const runtimeSchema =
         ...sqliteGsc,
         ...sqliteTelemetry,
         ...sqliteAiVisibility,
+        ...sqliteTregUsage,
       };
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded by schema-parity.test.ts
@@ -120,6 +125,7 @@ export const {
   ga4Connections,
   gscConnections,
   telemetryState,
+  tregUsage,
   aiTrackers,
   aiPrompts,
   aiRuns,

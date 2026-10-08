@@ -1,3 +1,4 @@
+import { fetchTregGoogle, TREG_GOOGLE_ACCOUNT_ID } from "./treg-google";
 import { getGoogleAccessToken } from "@/server/features/google/googleOAuth";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
 import { GscApiError, GscTokenError } from "./gscErrors";
@@ -103,12 +104,13 @@ export function createGscClient(opts: {
     url: string,
     init?: { method?: string; body?: unknown },
   ): Promise<T> {
-    const token = await getToken();
+    const treg = opts.gscAccountId === TREG_GOOGLE_ACCOUNT_ID;
+    const token = treg ? null : await getToken();
     const hasBody = init?.body !== undefined;
-    const response = await fetch(url, {
+    const response = await (treg ? fetchTregGoogle : fetch)(url, {
       method: init?.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
       },
       body: hasBody ? JSON.stringify(init?.body) : undefined,
@@ -126,6 +128,7 @@ export function createGscClient(opts: {
 
   return {
     async getUserInfoEmail(): Promise<string | null> {
+      if (opts.gscAccountId === TREG_GOOGLE_ACCOUNT_ID) return null;
       const data = await request<{ email?: unknown }>(GOOGLE_USERINFO_URL);
       return typeof data.email === "string" ? data.email : null;
     },

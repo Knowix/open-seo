@@ -1,3 +1,4 @@
+import { ga4ProjectHostnames } from "./Ga4ProjectScope";
 import { z } from "zod";
 import { createGa4DataClient } from "@/server/lib/ga4Client";
 import {
@@ -282,6 +283,7 @@ async function runReport(input: Ga4ReportInput, opts: { now?: Date } = {}) {
       userId: connection.connectedByUserId,
       ga4AccountId: connection.ga4AccountId,
       propertyId: connection.propertyId,
+      hostnames: ga4ProjectHostnames(connection),
     });
     const previousDateRange = input.comparePreviousPeriod
       ? previousPeriod(dateRange.resolvedDateRange)
@@ -333,6 +335,7 @@ async function runReport(input: Ga4ReportInput, opts: { now?: Date } = {}) {
       source: {
         provider: "google_analytics",
         propertyId: connection.propertyId,
+        hostnames: ga4ProjectHostnames(connection),
         propertyDisplayName: connection.propertyDisplayName,
       },
       request: {

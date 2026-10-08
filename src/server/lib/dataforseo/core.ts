@@ -1,3 +1,7 @@
+import {
+  recordTregResponse,
+  recordTregTransportFailure,
+} from "@/server/lib/treg-usage";
 import { AppError } from "@/server/lib/errors";
 import {
   getOptionalEnvValue,
@@ -95,6 +99,11 @@ function createAuthenticatedFetch(
       try {
         response = await fetch(target, { ...init, headers, signal });
       } catch (error) {
+        if (provider === "treg")
+          await recordTregTransportFailure(
+            formatDataforseoRequestPath(url),
+            headers.get("Idempotency-Key")!,
+          );
         // Both abort flavours mean "we ran out of time", and neither carries a
         // useful name of its own: the shared budget above rejects with
         // TimeoutError, while Lighthouse passes its own AbortController
@@ -111,13 +120,26 @@ function createAuthenticatedFetch(
           const path = formatDataforseoRequestPath(url);
           const timeoutError = new AppError(
             "UPSTREAM_UNAVAILABLE",
-            `DataForSEO request timed out on ${path}`,
-            { provider: "dataforseo", providerPath: path },
+            `${provider === "treg" ? "Treg" : "DataForSEO"} request timed out on ${path}`,
+            { provider, providerPath: path },
           );
           timeoutError.name = "DataForSEOTimeoutError";
           throw timeoutError;
         }
         throw error;
+      }
+      // Only record the final response; retries reuse the same key.
+      if (
+        provider === "treg" &&
+        (response.ok ||
+          response.status < 500 ||
+          attempt >= maxServerErrorRetries)
+      ) {
+        await recordTregResponse(
+          response,
+          formatDataforseoRequestPath(url),
+          headers.get("Idempotency-Key")!,
+        );
       }
       if (response.ok) {
         if (provider === "treg") {
@@ -156,9 +178,9 @@ function createAuthenticatedFetch(
                 : "INTERNAL_ERROR";
       const error = new AppError(
         code,
-        `DataForSEO HTTP ${response.status} on ${path}`,
+        `${provider === "treg" ? "Treg" : "DataForSEO"} HTTP ${response.status} on ${path}`,
         {
-          provider: "dataforseo",
+          provider,
           providerStatus: String(response.status),
           providerPath: path,
           responseBody: formatDataforseoErrorPayload(rawText),
