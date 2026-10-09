@@ -7,12 +7,15 @@ import {
   type PostedAiTrackingTask,
 } from "@/server/lib/dataforseo";
 import { AppError } from "@/server/lib/errors";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import {
+  getOptionalEnvValue,
+  isHostedServerAuthMode,
+} from "@/server/lib/runtime-env";
 import type { AiEngine } from "@/shared/ai-visibility";
 import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepository";
 import { parseDataforseoAnswer } from "../providers/dataforseoEvidence";
 import { aiBrands } from "./aiVisibilityConfiguration";
-import { aiCostForCount } from "./aiVisibilityCost";
+import { aiCostForScope } from "./aiVisibilityCost";
 import { matchAiBrand } from "./aiVisibilityMatching";
 import { failAiRun } from "./aiVisibilityRuns";
 
@@ -45,7 +48,13 @@ export async function prepareAiRun(
     (row) => row.status === "pending",
   );
   if (await isHostedServerAuthMode()) {
-    const required = aiCostForCount(answers.length, true).costCredits;
+    const required = (
+      await aiCostForScope(
+        1,
+        answers.map((row) => row.engine),
+        true,
+      )
+    ).costCredits;
     const credits = await getUsageCreditsRemaining(customer.organizationId);
     if (credits.monthlyRemaining + credits.topupRemaining < required)
       throw new AppError(
@@ -55,12 +64,16 @@ export async function prepareAiRun(
   }
   await repo.updateRun(runId, { status: "running" });
   const batches: AiTaskBatch[] = [];
+  const batchSize =
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg"
+      ? 1
+      : MAX_TASKS_PER_POST;
   for (const engine of new Set(answers.map((row) => row.engine))) {
     const tasks = answers
       .filter((row) => row.engine === engine)
       .map((row) => ({ tag: row.id, prompt: row.prompt }));
-    for (let i = 0; i < tasks.length; i += MAX_TASKS_PER_POST)
-      batches.push({ engine, tasks: tasks.slice(i, i + MAX_TASKS_PER_POST) });
+    for (let i = 0; i < tasks.length; i += batchSize)
+      batches.push({ engine, tasks: tasks.slice(i, i + batchSize) });
   }
   return {
     market: { locationCode: run.locationCode, languageCode: run.languageCode },
@@ -133,35 +146,13 @@ export async function collectAiRound(
         ]);
         continue;
       }
-      const answer = parseDataforseoAnswer(outcome.value.result, task.engine);
-      if (!answer) {
-        await repo.failPendingObservations(
-          runId,
-          "DataForSEO returned an answer we could not read.",
-          [task.tag],
-        );
-        continue;
-      }
-      await repo.persistAnswer({
-        observationId: task.tag,
-        values: {
-          status: "completed",
-          collectedAt: answer.collectedAt ?? new Date().toISOString(),
-          answerMarkdown: answer.answerMarkdown,
-          error: null,
-        },
-        sources: answer.citations.map((citation) => ({
-          id: crypto.randomUUID(),
-          observationId: task.tag,
-          ...citation,
-        })),
-        matches: brands.map((brand) => ({
-          id: crypto.randomUUID(),
-          observationId: task.tag,
-          ...brand,
-          ...matchAiBrand(answer, brand),
-        })),
-      });
+      await saveCollectedAnswer(
+        runId,
+        task.tag,
+        task.engine,
+        outcome.value.result,
+        brands,
+      );
     }
   }
   return stillPending;
@@ -200,4 +191,73 @@ export async function markAiRunFailed(runId: string, error: unknown) {
   await failAiRun(runId, message);
   const run = await repo.getRunInternal(runId);
   if (run) await repo.updateTracker(run.trackerId, { lastSkipReason: message });
+}
+
+async function saveCollectedAnswer(
+  runId: string,
+  observationId: string,
+  engine: AiEngine,
+  raw: unknown,
+  brands: ReturnType<typeof aiBrands>,
+) {
+  const answer = parseDataforseoAnswer(raw, engine);
+  if (!answer) {
+    await repo.failPendingObservations(
+      runId,
+      "DataForSEO returned an answer we could not read.",
+      [observationId],
+    );
+    return;
+  }
+  await repo.persistAnswer({
+    observationId,
+    values: {
+      status: "completed",
+      collectedAt: answer.collectedAt ?? new Date().toISOString(),
+      answerMarkdown: answer.answerMarkdown,
+      error: null,
+    },
+    sources: answer.citations.map((citation) => ({
+      id: crypto.randomUUID(),
+      observationId,
+      ...citation,
+    })),
+    matches: brands.map((brand) => ({
+      id: crypto.randomUUID(),
+      observationId,
+      ...brand,
+      ...matchAiBrand(answer, brand),
+    })),
+  });
+}
+
+/** Called once per answer in its own non-retrying workflow step. */
+export async function collectLiveAiBatch(
+  runId: string,
+  customer: BillingCustomerContext,
+  market: AiRunMarket,
+  batch: AiTaskBatch,
+) {
+  const run = await repo.getRunInternal(runId);
+  const project = run ? await repo.getProject(run.projectId) : null;
+  if (!run || !project) throw new AppError("NOT_FOUND");
+  const brands = aiBrands(project, await repo.listCompetitors(project.id));
+  for (const task of batch.tasks) {
+    try {
+      const raw = await createDataforseoClient(customer).aiSearch.trackingLive({
+        engine: batch.engine,
+        prompt: task.prompt,
+        ...market,
+      });
+      await saveCollectedAnswer(runId, task.tag, batch.engine, raw, brands);
+    } catch (error) {
+      await repo.failPendingObservations(
+        runId,
+        error instanceof Error
+          ? error.message
+          : "Live answer collection failed.",
+        [task.tag],
+      );
+    }
+  }
 }

@@ -149,7 +149,7 @@ export const generateAiVisibilityPromptsTool = defineAiTool({
   output: aiPromptSuggestionsSchema,
   readOnly: false,
   description:
-    "Generate editable topic and prompt suggestions from shared Project context. Uses existing usage credits for one model call. Supply topic to add unique prompts to a saved topic or to name a new one, or omit it for a new topic the model names. Excludes all saved prompts and excludePrompts drafts, including case/whitespace variants. Does not save or collect answers. Review suggestions before saving through save_ai_visibility_tracker with the returned topic.",
+    "Generate editable topic and prompt suggestions from shared Project context. Uses existing usage credits for one model call when configured. In local Treg mode without a model key, returns free editable templates labeled source=templates; these are not measured customer questions. Supply topic to add unique prompts to a saved topic or to name a new one, or omit it for a new topic the model names. Excludes all saved prompts and excludePrompts drafts, including case/whitespace variants. Does not save or collect answers. Review suggestions before saving through save_ai_visibility_tracker with the returned topic.",
   execute: (s, a, b) => s.generatePrompts(a, b),
   summarize: (d) =>
     `Generated ${d.prompts.length} prompt suggestions for ${d.topic}. Review and edit before saving.`,
@@ -167,14 +167,16 @@ export const completeAiResearchSetupTool = defineAiTool({
   readOnly: false,
   path: "research",
   description:
-    "Give a project with a saved website its Prompt Research keywords. Get the user's approval first: unless keywords exist, this starts paid research with usage credits. Starting is idempotent: a running or reviewable setup is returned, not restarted. With a business overview and competitors in shared context, one model call writes the keywords and, when the project has no tracking yet, seeds three paused tracker topics with five prompts each. Missing overview and competitors are researched independently; saved values are reused. Status becomes review when basics or competitors were researched: review new competitors, or preserve the saved list when preserveCompetitors=true, then save with save_project_website_setup. While status is running, call again after about 20 seconds. Never starts answer collection.",
+    "Give a project with a saved website its Prompt Research keywords. Get the user's approval first: unless keywords exist, this starts paid research with usage credits. In local Treg mode without a model key, setup is free/manual and does not block research or tracking. Starting is idempotent: a running or reviewable setup is returned, not restarted. With a business overview and competitors in shared context, one model call writes the keywords and, when the project has no tracking yet, seeds three paused tracker topics with five prompts each. Missing overview and competitors are researched independently; saved values are reused. Status becomes review when basics or competitors were researched: review new competitors, or preserve the saved list when preserveCompetitors=true, then save with save_project_website_setup. While status is running, call again after about 20 seconds. Never starts answer collection.",
   execute: (s, a, b) => s.startResearchSetup(a, b),
   summarize: (d) =>
-    d.status === "ready"
-      ? `Research keywords: ${d.keywords.join(", ")}.`
-      : d.status === "review"
-        ? "Setup research is ready for review. Save it with save_project_website_setup after the user confirms."
-        : `Setup is ${d.status}.`,
+    d.manualSetup
+      ? "Manual AI setup is ready. Add editable prompts or research a keyword; no paid setup was started."
+      : d.status === "ready"
+        ? `Research keywords: ${d.keywords.join(", ")}.`
+        : d.status === "review"
+          ? "Setup research is ready for review. Save it with save_project_website_setup after the user confirms."
+          : `Setup is ${d.status}.`,
 });
 
 export const researchAiVisibilityPromptsTool = defineAiTool({
@@ -257,7 +259,7 @@ export const runAiVisibilityCheckTool = defineAiTool({
   output: aiRunOutput,
   readOnly: false,
   description:
-    "Start an explicitly approved one-off paid AI check, preserving the schedule. maxCostUsd is the cost the user approved from estimate_ai_visibility_cost; the check is refused if it now costs more. Only one check runs per project at a time. Returns a run immediately. Never call this tool to poll: use get_ai_visibility_run with the returned run ID.",
+    "Start an explicitly approved one-off paid AI check, preserving the schedule. maxCostUsd is the cost the user approved from estimate_ai_visibility_cost; the check is refused if its current estimate rises. Treg uses live collection and actual charges can vary; the estimate is not a guaranteed dollar cap. Only one check runs per project at a time. Returns a run immediately. Never call this tool to poll: use get_ai_visibility_run with the returned run ID.",
   execute: (s, a, b) => s.runCheck(a, b),
   summarize: (d) =>
     `Run ${d.id}: ${d.status}, ${d.completed}/${d.expected} completed. ${runNextAction(d)}`,

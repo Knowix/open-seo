@@ -6,6 +6,7 @@ import {
 import { pgStep } from "./pgStep";
 import {
   collectAiRound,
+  collectLiveAiBatch,
   finalizeAiRun,
   markAiRunFailed,
   postAiBatch,
@@ -13,6 +14,7 @@ import {
   type AiPendingTask,
 } from "@/server/features/ai-visibility/services/aiVisibilityCollection";
 import { runAiResearchSetup } from "@/server/features/ai-visibility/services/aiResearchKeywords";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 
 // One binding serves answer collection runs and the one-time research setup,
@@ -73,6 +75,19 @@ export class AiVisibilityWorkflow extends WorkflowEntrypoint<
         SINGLE_ATTEMPT,
         () => prepareAiRun(runId, customer),
       );
+      if ((await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg") {
+        for (const [index, batch] of batches.entries())
+          await pgStep(
+            step,
+            `live-${index}`,
+            { ...SINGLE_ATTEMPT, timeout: "3 minutes" },
+            () => collectLiveAiBatch(runId, customer, market, batch),
+          );
+        await pgStep(step, "finalize", SINGLE_ATTEMPT, () =>
+          finalizeAiRun(runId),
+        );
+        return;
+      }
       let pending: AiPendingTask[] = [];
       for (const [index, batch] of batches.entries())
         pending.push(

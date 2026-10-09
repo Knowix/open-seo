@@ -16,7 +16,7 @@ import type { RunAiCheckInput } from "@/types/schemas/ai-visibility";
 import { requireConfiguration } from "./aiVisibilityMutation";
 import { aiPromptIsBranded } from "./aiVisibilityMatching";
 import { aiRunView } from "./aiVisibilityResults";
-import { aiCostForCount } from "./aiVisibilityCost";
+import { aiCostForScope } from "./aiVisibilityCost";
 
 const ACTIVE_WORKFLOW_STATUSES = new Set([
   "queued",
@@ -161,8 +161,9 @@ export async function runCheck(
   const config = await requireConfiguration(input.projectId);
   const scope = aiScope(config, input.promptIds);
   // Price the check now and refuse it above what the user approved.
-  const { costUsd } = aiCostForCount(
-    scope.prompts.length * scope.engines.length,
+  const { costUsd } = await aiCostForScope(
+    scope.prompts.length,
+    scope.engines,
     await isHostedServerAuthMode(),
   );
   if (Math.round(costUsd * 1e6) > Math.round(input.maxCostUsd * 1e6))

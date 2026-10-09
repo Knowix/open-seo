@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { dataforseoGet } from "@/server/lib/dataforseo/core";
 import { assertOk } from "@/server/lib/dataforseo/envelope";
 
@@ -92,8 +93,23 @@ function pickLatestLlmModelName(
   // No flagship alias in the catalog: take the newest snapshot name it still
   // lists, so the pick passes the catalog check in fetchLlmResponse.
   const fallback = FALLBACK_MODEL_NAMES[slug];
-  return best?.name ?? fallback.find((n) => names.includes(n)) ?? fallback[0];
+  return (
+    best?.name ??
+    fallback.find((n) => names.includes(n)) ??
+    names[0] ??
+    fallback[0]
+  );
 }
+
+// The Treg catalog does not expose the free Models GET routes. Use model
+// names in its verified endpoint examples rather than pretending a live
+// catalog was read. Overrides remain explicit; no paid model guessing/retry.
+const TREG_MODEL_NAMES: Record<LlmResponseModelSlug, string> = {
+  chat_gpt: "gpt-4.1-mini",
+  claude: "claude-sonnet-4-5",
+  gemini: "gemini-2.5-flash",
+  perplexity: "sonar",
+};
 
 const CATALOG_TTL_MS = 60 * 60 * 1000;
 
@@ -105,6 +121,12 @@ const catalogCache = new Map<
 >();
 
 async function getLlmModelNames(slug: LlmResponseModelSlug): Promise<string[]> {
+  if ((await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg") {
+    const override = await getOptionalEnvValue(
+      `TREG_LLM_MODEL_${slug.toUpperCase()}`,
+    );
+    return [override ?? TREG_MODEL_NAMES[slug]];
+  }
   const cached = catalogCache.get(slug);
   if (cached && Date.now() - cached.fetchedAt < CATALOG_TTL_MS) {
     return cached.names;

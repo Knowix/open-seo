@@ -14,7 +14,10 @@ import {
   type WebsiteResearch,
 } from "@/types/schemas/projectWebsite";
 import { AppError } from "@/server/lib/errors";
-import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
+import {
+  getOptionalEnvValue,
+  isHostedServerAuthMode,
+} from "@/server/lib/runtime-env";
 import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepository";
 import {
   writeConfiguration,
@@ -84,11 +87,19 @@ export async function getAiResearchSetup(projectId: string) {
     ProjectContextRepository.listSections(projectId),
     ProjectContextRepository.listCompetitors(projectId),
   ]);
-  const run = keywords.length
-    ? { status: "ready" as const }
-    : await readSetupRun(projectId);
+  // Local Treg research and tracking do not require a separate model key.
+  // Leave topic selection editable instead of blocking every AI page on setup.
+  const manualSetup =
+    !(await isHostedServerAuthMode()) &&
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg" &&
+    !(await getOptionalEnvValue("OPENROUTER_API_KEY"));
+  const run =
+    keywords.length || manualSetup
+      ? { status: "ready" as const }
+      : await readSetupRun(projectId);
   return {
     keywords,
+    manualSetup,
     ...missingContext(sections, competitors),
     status: run.status,
     review: "review" in run ? run.review : null,

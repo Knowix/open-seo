@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, Search, Telescope } from "lucide-react";
-import { EmptyState } from "@/client/components/EmptyState";
-import { PageHeader } from "@/client/components/PageHeader";
+import { ChevronRight, Search } from "lucide-react";
 import {
   SkeletonPageContent,
   SkeletonTableRows,
@@ -34,7 +32,6 @@ export function PromptResearchPage({
   keyword: string | undefined;
 }) {
   const trackerQuery = useAiVisibilityTracker(projectId);
-  const state = trackerQuery.data;
   if (trackerQuery.isPending) return <SkeletonPageContent />;
   if (trackerQuery.isError)
     return (
@@ -45,28 +42,7 @@ export function PromptResearchPage({
         }}
       />
     );
-  if (!state?.configured)
-    return (
-      <div className="space-y-5 pt-1">
-        <PageHeader title="Prompt Research" />
-        <EmptyState
-          icon={Telescope}
-          title="Prompt research starts with a tracker"
-          description="Set up prompt tracking to research prompts for your topics."
-          action={
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={
-                <Link to="/p/$projectId/ai-visibility" params={{ projectId }} />
-              }
-            >
-              Set up prompt tracking
-            </Button>
-          }
-        />
-      </div>
-    );
+  const state = trackerQuery.data;
   return keyword ? (
     <PromptResearchKeyword
       key={keyword}
@@ -97,7 +73,8 @@ function KeywordList({ projectId }: { projectId: string }) {
         <div className="border-b p-4 border-border">
           <h2 className="font-medium">Relevant keywords</h2>
           <p className="text-sm text-muted-foreground">
-            Select a keyword to see the prompts people ask AI about it.
+            Select a keyword to research related prompts and citations.
+            Prevalence is estimated from search data, not counted AI usage.
           </p>
         </div>
         {query.isPending ? (
@@ -163,6 +140,7 @@ function KeywordList({ projectId }: { projectId: string }) {
 }
 
 function KeywordSearch({ projectId }: { projectId: string }) {
+  const { data: state } = useAiVisibilityTracker(projectId);
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
   return (
@@ -195,7 +173,9 @@ function KeywordSearch({ projectId }: { projectId: string }) {
         id="ai-keyword-research-cost"
         className="mt-2 text-xs text-muted-foreground"
       >
-        About $0.25 in credits per keyword.
+        {state?.dataProvider === "treg"
+          ? "About $0.22 USD per keyword through Treg; actual charges vary. Results are reused for 24 hours."
+          : "About $0.25 in credits per keyword."}
       </p>
     </form>
   );

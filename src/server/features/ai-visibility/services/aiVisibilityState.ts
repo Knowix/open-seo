@@ -1,5 +1,8 @@
 import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepository";
-import { isSeoDataConfigured } from "@/server/lib/runtime-env";
+import {
+  getOptionalEnvValue,
+  isSeoDataConfigured,
+} from "@/server/lib/runtime-env";
 import {
   AI_ENGINE_LABELS,
   AI_UNSUPPORTED_LOCATIONS,
@@ -50,8 +53,13 @@ export async function getTracker(input: {
     note: AI_ENGINE_NOTES[engine],
   }));
   const providerConfigured = !!providerKey;
+  const dataProvider =
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg"
+      ? ("treg" as const)
+      : ("dataforseo" as const);
   if (!config)
     return {
+      dataProvider,
       configured: false,
       tracker: null,
       topics: [],
@@ -64,6 +72,7 @@ export async function getTracker(input: {
     };
   const { tracker } = config;
   return {
+    dataProvider,
     configured: true,
     tracker: {
       id: tracker.id,

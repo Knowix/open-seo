@@ -63,6 +63,7 @@ export interface AiRun {
   pollAfterSeconds: number;
 }
 export interface AiTrackerState {
+  dataProvider?: "treg" | "dataforseo";
   configured: boolean;
   tracker: AiTracker | null;
   /** Topics of unarchived prompts, in name order. */

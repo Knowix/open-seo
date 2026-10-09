@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { identity, sortBy } from "remeda";
 import { Columns3, MessageSquare, SearchCheck, Sparkles } from "lucide-react";
+import { getSeoApiKeyStatus } from "@/serverFunctions/config";
 import { useHostedPlanGate } from "@/client/features/billing/HostedPlanGate";
 import { ResearchPageShell } from "@/client/features/ai-search/ResearchPageShell";
 import { PromptTrackingWithoutUpgradeButton } from "@/client/features/ai-visibility/shared";
@@ -73,6 +74,10 @@ export function PromptExplorerPage({
   onClear,
 }: Props) {
   const planStatus = useHostedPlanGate();
+  const provider = useQuery({
+    queryKey: ["seoApiKeyStatus"],
+    queryFn: () => getSeoApiKeyStatus(),
+  });
   const [form, setForm] = useState<PromptExplorerFormValues>(urlState);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -182,7 +187,11 @@ export function PromptExplorerPage({
     <ResearchPageShell
       contained
       title="Prompt Explorer"
-      description="Ask any prompt across ChatGPT, Claude, Gemini, and Perplexity side-by-side."
+      description={
+        provider.data?.dataProvider === "treg"
+          ? "Compare model API answers through Treg. Model versions use verified catalog examples, not the consumer apps. Token and search charges vary; results are cached for seven days. Typical catalog examples total about $0.10 for four models, not a guaranteed quote."
+          : "Ask any prompt across ChatGPT, Claude, Gemini, and Perplexity side-by-side."
+      }
       gate={{
         feature: "Prompt Explorer",
         description:

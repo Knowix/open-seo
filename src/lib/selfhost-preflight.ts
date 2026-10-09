@@ -299,7 +299,7 @@ export function runSelfhostPreflight(env: EnvRecord): PreflightResult {
     name: "Scheduled checks",
     level: "info",
     message:
-      "Rank-tracking schedules do not run in Docker mode — trigger checks from the Rank Tracking page.",
+      "Docker startup runs a local scheduler every five minutes. Enabled rank and AI trackers run while the container is running.",
   });
 
   return { items, failed: items.some((item) => item.level === "fail") };

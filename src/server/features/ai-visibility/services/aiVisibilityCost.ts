@@ -1,13 +1,16 @@
+import { tregAiAnswerEstimate } from "@/shared/treg-ai-pricing";
 import { AiVisibilityRepository as repo } from "../repositories/AiVisibilityRepository";
 import { AiVisibilityError } from "./aiVisibilityErrors";
 import { aiScope } from "./aiVisibilityConfiguration";
 import {
   isSeoDataConfigured,
+  getOptionalEnvValue,
   isHostedServerAuthMode,
 } from "@/server/lib/runtime-env";
 import {
   AI_RECORD_COST_USD,
   type AiCostEstimate,
+  type AiEngine,
 } from "@/shared/ai-visibility";
 import {
   AUTUMN_SEO_DATA_CREDITS_PER_USD,
@@ -30,6 +33,33 @@ export function aiCostForCount(count: number, hosted: boolean) {
   };
 }
 
+/** Treg live catalog observations; estimates, not guaranteed charges. */
+export async function aiCostForScope(
+  promptCount: number,
+  engines: AiEngine[],
+  hosted: boolean,
+) {
+  if ((await getOptionalEnvValue("SEO_DATA_PROVIDER")) !== "treg")
+    return aiCostForCount(promptCount * engines.length, hosted);
+  const providerCostUsd =
+    Math.round(
+      promptCount *
+        engines.reduce(
+          (total, engine) => total + tregAiAnswerEstimate(engine),
+          0,
+        ) *
+        1e6,
+    ) / 1e6;
+  const costCredits = hosted ? creditsForProviderUsd(providerCostUsd) : 0;
+  return {
+    providerCostUsd,
+    costCredits,
+    costUsd: hosted
+      ? costCredits / AUTUMN_SEO_DATA_CREDITS_PER_USD
+      : providerCostUsd,
+  };
+}
+
 export async function estimateCost(
   input: EstimateAiCostInput,
 ): Promise<AiCostEstimate> {
@@ -45,7 +75,12 @@ export async function estimateCost(
   const scope = aiScope(config, input.promptIds);
   const observations = scope.prompts.length * scope.engines.length;
   const hosted = await isHostedServerAuthMode();
-  const cost = aiCostForCount(observations, hosted);
+  const treg = (await getOptionalEnvValue("SEO_DATA_PROVIDER")) === "treg";
+  const cost = await aiCostForScope(
+    scope.prompts.length,
+    scope.engines,
+    hosted,
+  );
   const scheduleInterval =
     input.scheduleInterval ?? current?.tracker.scheduleInterval ?? "weekly";
   const checksPerMonth = scheduledChecksPerMonth(scheduleInterval);
@@ -61,7 +96,9 @@ export async function estimateCost(
     warnings: [
       hosted
         ? "Customer cost uses OpenSEO data credits, including the service markup."
-        : "Self-hosted: this is a DataForSEO estimate. In Treg mode, actual charges are recorded in Treg; estimates may differ. OpenSEO credits are not used.",
+        : treg
+          ? "Treg live estimate (catalog checked October 9, 2026): ChatGPT/Gemini $0.004 per answer, Google AI Overview planning allowance $0.008 including async load. Actual charges can vary; see Treg usage in Integrations. This is not a guaranteed dollar cap. OpenSEO credits are not used."
+          : "Self-hosted DataForSEO standard-queue estimate. OpenSEO credits are not used.",
       `One fresh answer per prompt and engine. The ${scheduleInterval} estimate assumes ${checksPerMonth} ${checksPerMonth === 1 ? "check" : "checks"} per month.`,
       ...(!(await isSeoDataConfigured())
         ? [

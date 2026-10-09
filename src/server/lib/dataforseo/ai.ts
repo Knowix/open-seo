@@ -75,7 +75,7 @@ export async function fetchLlmMentionsSearch(
   input: LlmMentionsSearchInput,
 ): Promise<DataforseoApiResponse<LlmMentionItem[]>> {
   const response = await dataforseoPost(
-    "/v3/ai_optimization/llm_mentions/search/live",
+    "/v3/ai_optimization/llm_mentions/search_mentions/live",
     [
       {
         target: targetList(input.target),
@@ -90,7 +90,7 @@ export async function fetchLlmMentionsSearch(
   );
   const task = assertOk(
     response,
-    assertOptions("/v3/ai_optimization/llm_mentions/search/live"),
+    assertOptions("/v3/ai_optimization/llm_mentions/search_mentions/live"),
   );
 
   const items = z

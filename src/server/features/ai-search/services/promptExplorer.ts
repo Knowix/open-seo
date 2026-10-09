@@ -1,3 +1,4 @@
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
 import { waitUntil } from "cloudflare:workers";
 import type { BillingCustomerContext } from "@/server/billing/subscription";
 import { createDataforseoClient } from "@/server/lib/dataforseo";
@@ -155,7 +156,11 @@ async function runModel(
   // non-deterministic per call, so one paid retry meaningfully raises the
   // odds of a cited answer; keep the retry only if it actually searched.
   // A failed retry keeps the first answer, which is already paid for.
-  if (args.input.webSearch && !rawResponse.web_search) {
+  if (
+    args.input.webSearch &&
+    !rawResponse.web_search &&
+    (await getOptionalEnvValue("SEO_DATA_PROVIDER")) !== "treg"
+  ) {
     const retried = await fetchModelResponse(args, modelName).catch((err) => {
       console.error(
         `ai-search.prompt-response.${args.model}.retry failed:`,

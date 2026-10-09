@@ -47,7 +47,7 @@ skills, but disable its hosted MCP when switching to this fork.
   Unknown routes fail before making a provider request. Refresh the mapping
   when Treg adds support, retaining exact method/path/id matches.
 - Queued `task_post` workflows are blocked before submission: this adapter does
-  not yet implement task ownership and collection. Scheduled rank checks use supported live SERPs instead. Queued business
+  not yet implement task ownership and collection. Scheduled rank checks use supported live SERPs instead. AI visibility uses one live request per prompt and engine, with non-retrying workflow steps; it does not submit queued tasks. Queued business
   reviews/updates remain unavailable.
 - Some LLM mention analytics and model-list routes are not in the catalog.
   Their absence is reported explicitly; similar-looking endpoints are not
@@ -82,6 +82,40 @@ Treg mode uses supported live SERPs for scheduled and manual rank checks. It doe
 
 Project Settings → Integrations → Treg usage shows actual USD charges from response headers. The free get_treg_usage MCP tool reads the same normalized ledger. Each request is attributed to its project and organization; replays count once. Missing headers and transport failures remain unknown, not zero. This ledger starts at installation and excludes calls made outside the app. The upstream task cost remains separate and is not represented as the Treg invoice. Read Treg's own balance to reconcile overall account spend.
 
-The existing external AI-answer workflow may continue via Treg directly, with summaries saved into OpenSEO. OpenSEO queued AI tracking and other unmapped or queued routes remain unsupported and are rejected before submitting requests. The in-app AI agent still needs its own configured model provider.
+The existing external AI-answer workflow may continue via Treg directly, with summaries saved into OpenSEO. Queued provider routes remain blocked; native AI tracking now collects through supported live routes. Other unmapped or queued routes remain unsupported and are rejected before submitting requests. The in-app AI agent still needs its own configured model provider.
 
 Dashboard visits use saved backlink snapshots in Treg mode. They do not trigger paid refreshes by default. Set TREG_DASHBOARD_AUTO_REFRESH=true only to opt into the original once-daily, visit-triggered paid refresh behavior. Explicit research requests and rank schedules retain their documented costs.
+
+## AI visibility in local Treg mode
+
+Prompt Research, Prompt Explorer and Prompt Tracking open without OpenRouter.
+When no model key is configured, setup stays manual; no paid website-research
+workflow is required. Prompt Research reuses saved keywords as suggestions when
+no topics exist, and waits for an explicit research action before spending.
+Prompt suggestions are editable English/Hungarian templates labeled as such,
+not measured customer questions. Other languages can use manually entered
+prompts or a configured model provider. Existing project context is preserved.
+
+Prompt Research uses the current LLM Mentions Search Mentions route and caches
+results for 24 hours. The UI planning estimate is about $0.22 for up to 100
+mentions plus 50 organic results; actual Treg charges may vary. Sparse niche
+results are not evidence that nobody asks about the service.
+
+Prompt Explorer compares model API responses, not consumer-site answers.
+Treg does not expose the free Models GET routes. Defaults use model names in
+its verified endpoint examples: gpt-4.1-mini, claude-sonnet-4-5,
+gemini-2.5-flash and sonar. These are not advertised as the newest versions.
+Operator overrides can be set with TREG_LLM_MODEL_CHAT_GPT,
+TREG_LLM_MODEL_CLAUDE, TREG_LLM_MODEL_GEMINI and TREG_LLM_MODEL_PERPLEXITY
+in the private environment file after checking provider support. Results are
+cached for seven days; Treg mode never buys a second answer just because the
+first model chose not to search. Token/search costs vary.
+
+Prompt Tracking uses live ChatGPT/Gemini scraper results and Google organic
+results with AI Overview loading. The October 9, 2026 catalog planning figures
+are $0.004 for ChatGPT/Gemini per answer, with a $0.008 allowance for Google
+including overview loading. The approval compares estimates, not actual dollar
+caps. Failed cells remain failed and pages without an overview are no-answer
+results. Mentions and citations stay separate. New trackers remain paused;
+enable schedules only after reviewing their scope and monthly cost. Docker's
+local scheduler operates only while the container is running.

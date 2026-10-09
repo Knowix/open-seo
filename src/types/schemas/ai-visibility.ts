@@ -98,7 +98,7 @@ export const runAiCheckSchema = aiProjectSchema.extend({
     .positive()
     .max(100)
     .describe(
-      "The most the user approved for this one check, from estimate_ai_visibility_cost. The check is refused if its current cost is higher.",
+      "The estimate the user approved for this one check, from estimate_ai_visibility_cost. The check is refused if its current estimate is higher. Treg actual charges can vary; this is not a guaranteed dollar cap.",
     ),
   promptIds: z.array(z.string().uuid()).min(1).max(100).optional(),
 });

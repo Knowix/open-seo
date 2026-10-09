@@ -1,6 +1,8 @@
 import { dataforseoGet, dataforseoPost } from "@/server/lib/dataforseo/core";
 import { MAX_TASKS_PER_POST } from "@/server/lib/dataforseo/shared";
 import {
+  assertOk,
+  buildTaskBilling,
   isNoResultsTask,
   isTaskInProgress,
   type DataforseoApiResponse,
@@ -144,4 +146,30 @@ export async function fetchAiTrackingTaskResult(input: {
     };
   }
   return { status: "completed", result: task.result?.[0] ?? null };
+}
+
+/** One live result through Treg; never creates a queued provider task. */
+export async function fetchLiveAiTrackingAnswer(input: {
+  engine: AiEngine;
+  prompt: string;
+  locationCode: number;
+  languageCode: string;
+}): Promise<DataforseoApiResponse<unknown>> {
+  const path = `${AI_TRACKING_ENDPOINTS[input.engine]}/live/advanced`;
+  const response = await dataforseoPost(
+    path,
+    [
+      {
+        keyword: input.prompt.replace(/%/g, "%25").replace(/\+/g, "%2B"),
+        location_code: input.locationCode,
+        language_code: providerLanguageCode(input.engine, input.languageCode),
+        ...(input.engine === "google_ai_overview"
+          ? { depth: 10, load_async_ai_overview: true }
+          : {}),
+      },
+    ],
+    { signal: AbortSignal.timeout(120_000), maxServerErrorRetries: 0 },
+  );
+  const task = assertOk(response, { treatNoResultsAsEmpty: true });
+  return { data: task.result?.[0] ?? null, billing: buildTaskBilling(task) };
 }

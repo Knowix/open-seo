@@ -1,3 +1,4 @@
+import { tregAiAnswerEstimate } from "@/shared/treg-ai-pricing";
 import { withTregUsageScope } from "@/server/lib/treg-usage";
 import { waitUntil } from "cloudflare:workers";
 import {
@@ -60,7 +61,10 @@ import {
   fetchLlmResponse,
   fetchLlmTopPages,
 } from "@/server/lib/dataforseo/ai";
-import { postAiTrackingTasks } from "@/server/lib/dataforseo/ai-tracking";
+import {
+  fetchLiveAiTrackingAnswer,
+  postAiTrackingTasks,
+} from "@/server/lib/dataforseo/ai-tracking";
 import { isHostedServerAuthMode } from "@/server/lib/runtime-env";
 import { AppError } from "@/server/lib/errors";
 
@@ -264,6 +268,12 @@ export function createDataforseoClient(customer: BillingCustomerContext) {
       ),
     },
     aiSearch: {
+      trackingLive: meter(
+        customer,
+        fetchLiveAiTrackingAnswer,
+        (input) => tregAiAnswerEstimate(input.engine),
+        "ai_prompt_responses",
+      ),
       mentionsSearch: meter(
         customer,
         fetchLlmMentionsSearch,

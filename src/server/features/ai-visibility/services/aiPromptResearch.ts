@@ -1,3 +1,4 @@
+import { KeywordResearchRepository } from "@/server/features/keywords/repositories/KeywordResearchRepository";
 import { waitUntil } from "cloudflare:workers";
 import { sortBy } from "remeda";
 import { getDomain } from "tldts";
@@ -84,8 +85,19 @@ export async function listAiResearchKeywords(input: {
     getTracker({ projectId: input.projectId }),
     repo.listResearchKeywords(input.projectId),
   ]);
+  const saved =
+    !researchKeywords.length && !state.topics.length
+      ? await KeywordResearchRepository.listSavedKeywordsByProject({
+          projectId: input.projectId,
+          page: 1,
+          pageSize: 30,
+          sort: "searchVolume",
+          order: "desc",
+        })
+      : null;
   const keywords = [
     ...researchKeywords,
+    ...(saved?.rows.map(({ row }) => row.keyword) ?? []),
     // The default topic is a catch-all, not a keyword.
     ...state.topics.filter((topic) => topic !== AI_DEFAULT_TOPIC),
   ].map(normalizeAiSuggestion);

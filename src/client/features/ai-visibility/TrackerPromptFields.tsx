@@ -56,6 +56,10 @@ export function TrackerPromptFields({
     onMutate: () => onGeneratingChange(true),
     onSettled: () => onGeneratingChange(false),
     onSuccess: (suggestions) => {
+      if (suggestions.source === "templates")
+        toast.info(
+          "Editable templates only; these are not measured customer queries.",
+        );
       const entered = group.prompts.filter((text) => text.trim());
       const accepted = suggestions.prompts.slice(
         0,
@@ -149,7 +153,7 @@ export function TrackerPromptFields({
             ) : (
               <Sparkles className="size-4" />
             )}
-            {generate.isPending ? "Generating…" : "Generate"}
+            {generate.isPending ? "Generating…" : "Suggest prompts"}
           </Button>
         </div>
         <div className="space-y-2">

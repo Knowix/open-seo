@@ -87,7 +87,19 @@ export function AiResearchSetupGate({
         }}
       />
     );
-  if (status === "ready") return children;
+  if (status === "ready")
+    return (
+      <>
+        {setup.data.manualSetup && (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Add your own topics and prompts, or use editable template
+            suggestions. Treg research and answer collection are available
+            without a separate model key.
+          </p>
+        )}
+        {children}
+      </>
+    );
   if (setup.data.review)
     return (
       <div className="grid min-h-[calc(100dvh-8rem)] place-items-center">

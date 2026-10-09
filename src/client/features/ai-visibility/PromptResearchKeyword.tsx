@@ -22,6 +22,7 @@ export function PromptResearchKeyword({
   keyword: string;
 }) {
   const queryClient = useQueryClient();
+  const [requested, setRequested] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [change, setChange] = useState<{
     patch: AiTrackerPatch;
@@ -38,6 +39,7 @@ export function PromptResearchKeyword({
     ],
     queryFn: () =>
       researchAiVisibilityPrompts({ data: { projectId, keyword } }),
+    enabled: requested,
     retry: false,
     staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -78,7 +80,16 @@ export function PromptResearchKeyword({
             Track selected{selected.size ? ` (${selected.size})` : ""}
           </Button>
         </div>
-        {research.isPending ? (
+        {!requested ? (
+          <div className="space-y-3 p-6">
+            <p className="text-sm text-muted-foreground">
+              {state.dataProvider === "treg"
+                ? "Estimated $0.22 USD through Treg for up to 100 mentions and 50 search results; actual charges vary. Cached results are reused for 24 hours."
+                : "About $0.25 in credits. Cached results are reused for 24 hours."}
+            </p>
+            <Button onClick={() => setRequested(true)}>Research prompts</Button>
+          </div>
+        ) : research.isPending ? (
           <SkeletonTableRows rows={8} columns={4} className="p-4" />
         ) : research.isError ? (
           <AiQueryError
